@@ -1,4 +1,5 @@
 from django.http import HttpResponse, JsonResponse
+from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.utils.timezone import now
@@ -44,6 +45,8 @@ def index(request):
     with open(index_path, 'r', encoding='utf-8') as f:
         html_content = f.read()
     
+    mode = 'true' if settings.TIDE_PUBLIC_READ_ONLY else 'false'
+    html_content = html_content.replace('</head>', f'<meta name="tide-public-read-only" content="{mode}"></head>')
     return HttpResponse(html_content)
 
 

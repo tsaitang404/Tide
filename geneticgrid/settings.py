@@ -40,6 +40,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'core.public_access.PublicAccessMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'allow_cidr.middleware.AllowCIDRMiddleware',
@@ -208,3 +209,14 @@ DB_RETENTION_DAYS = int(os.environ.get('DB_RETENTION_DAYS', '30'))
 
 # 插件 HTTP 请求超时（秒）
 PLUGIN_HTTP_TIMEOUT = int(os.environ.get('PLUGIN_HTTP_TIMEOUT', '60'))
+
+# Public deployments deliberately expose only the market viewer, never the control plane.
+TIDE_PUBLIC_READ_ONLY = os.environ.get('TIDE_PUBLIC_READ_ONLY', 'false').lower() == 'true'
+TIDE_HTTPS_PROXY = os.environ.get('TIDE_HTTPS_PROXY', 'false').lower() == 'true'
+if TIDE_HTTPS_PROXY:
+    # Only enable behind the trusted local reverse proxy; backend must stay loopback-bound.
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    CSRF_TRUSTED_ORIGINS = ['https://' + host for host in ALLOWED_HOSTS if host not in ('localhost', '127.0.0.1')]
+DATA_UPLOAD_MAX_MEMORY_SIZE = 65536

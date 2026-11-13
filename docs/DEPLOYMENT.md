@@ -65,3 +65,19 @@ GENETICGRID_IMAGE=geneticgrid:local ./scripts/smoke-image.sh
 ## 已知验证边界
 
 本地验证记录见本次任务报告。云开发环境没有 Docker Engine 时，前端构建和 Python 检查成功也不能替代完整镜像构建、Compose 迁移和启动烟测。正式发布以前必须在 CI 或有 Docker 的隔离环境完成后者。
+
+## Public market-only deployment
+
+Production Compose defaults to `TIDE_PUBLIC_READ_ONLY=true`: only GET/HEAD market
+pages, built assets and an explicit allowlist of market APIs are served. Account,
+trading, strategies, proxy configuration/testing and Django admin are not exposed.
+The UI hides their controls. No exchange credentials are required or provisioned.
+This is an access boundary, not a completed security audit of private-mode features.
+Do not expose private mode to the Internet.
+
+For `tide.sadd.ing`, retain `BIND_ADDRESS=127.0.0.1`, `PORT=18080`, set
+`ALLOWED_HOSTS=tide.sadd.ing,localhost,127.0.0.1` and `TIDE_HTTPS_PROXY=true`.
+Caddy terminates HTTPS and proxies to `127.0.0.1:18080`; it must overwrite
+`X-Forwarded-Proto` with `https`. Do not publish database or Redis ports.
+Public market data still requires working outbound DNS/HTTPS; proxying the site
+does not repair container egress, and firewall changes need separate approval.

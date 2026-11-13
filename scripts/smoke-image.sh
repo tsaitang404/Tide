@@ -16,6 +16,7 @@ cleanup() {
 }
 trap cleanup EXIT
 "${compose[@]}" up -d --wait --wait-timeout 180
+"${compose[@]}" exec -T backend python -m pytest tests/test_public_access.py tests/test_production_settings.py -q
 "${compose[@]}" exec -T backend python - <<'PY'
 import re
 from urllib.request import urlopen
@@ -24,6 +25,7 @@ with urlopen(base + '/') as response:
     page = response.read().decode()
 assets = re.findall(r'(?:src|href)="(/static/dist/[^\"]+\.(?:js|css))"', page)
 assert assets, 'Built Vue assets were not referenced by the index'
+assert 'name="tide-public-read-only" content="true"' in page
 for asset in assets:
     with urlopen(base + asset) as response:
         assert response.status == 200, asset

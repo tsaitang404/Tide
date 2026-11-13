@@ -5,10 +5,11 @@
         <h1 class="logo">潮汐 Tide</h1>
       </div>
       <div class="header-right">
-        <button :class="['account-btn', { logged: isLoggedIn }]" @click="toggleAccount">
+        <button v-if="!publicReadOnly" :class="['account-btn', { logged: isLoggedIn }]" @click="toggleAccount">
           {{ isLoggedIn ? `🔑 ${activeLabel}` : '🔑 账户' }}
         </button>
-        <button class="settings-btn" @click="toggleSettings">⚙️ 设置</button>
+        <span v-if="publicReadOnly">公开行情 · 只读</span>
+        <button v-if="!publicReadOnly" class="settings-btn" @click="toggleSettings">⚙️ 设置</button>
       </div>
     </header>
 
@@ -82,7 +83,7 @@
         </div>
 
         <!-- 交易工具面板：占据下方主要面积 -->
-        <section class="bottom-row">
+        <section v-if="!publicReadOnly" class="bottom-row">
           <TradingToolsPanel
             :symbol="currentSymbol"
             :currency="currency"
@@ -93,12 +94,12 @@
     </main>
 
     <SettingsModal
-      v-if="showSettings"
+      v-if="!publicReadOnly && showSettings"
       @close="toggleSettings"
     />
 
     <AccountPanel
-      v-if="showAccount"
+      v-if="!publicReadOnly && showAccount"
       @close="toggleAccount"
     />
   </div>
@@ -118,6 +119,8 @@ import { useTicker } from './composables/useTicker'
 import { useAuth } from './composables/useAuth'
 import { usePreferencesStore } from './stores/preferences'
 import type { SymbolMode } from '@/types'
+
+const publicReadOnly = document.querySelector('meta[name="tide-public-read-only"]')?.getAttribute('content') !== 'false'
 
 const initialSymbol = ref<string>('BTCUSDT')
 const initialBar = ref<string>('1h')
@@ -240,8 +243,10 @@ watch([currentMode, currentSymbol, currentSource], () => {
 })
 
 onMounted(async () => {
-  await checkAuthSession()
-  await preferences.loadProxySettings()
+  if (!publicReadOnly) {
+    await checkAuthSession()
+    await preferences.loadProxySettings()
+  }
   loadTicker()
   
   // 如果初始模式是合约，加载资金费率和基差

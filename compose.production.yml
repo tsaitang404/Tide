@@ -7,6 +7,8 @@ services:
       - "${BIND_ADDRESS:-127.0.0.1}:${PORT:-8000}:8000"
     environment:
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Set a unique DJANGO_SECRET_KEY}
+      TIDE_PUBLIC_READ_ONLY: ${TIDE_PUBLIC_READ_ONLY:-true}
+      TIDE_HTTPS_PROXY: ${TIDE_HTTPS_PROXY:-false}
       DJANGO_DEBUG: "false"
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
       DATABASE_URL: postgres://geneticgrid:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/geneticgrid
