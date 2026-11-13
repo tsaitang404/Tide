@@ -1,0 +1,8 @@
+# soul only: geneticgrid_default 07baec6b2e49, 172.18.0.0/16, WAN eth0.
+# No input rules, no global established rule, no other Docker bridge permissions.
+add rule inet filter forward iifname "br-07baec6b2e49" oifname "eth0" ip saddr 172.18.0.0/16 ip daddr { 183.60.83.19, 183.60.82.98 } udp dport 53 ct state { new, established } accept comment "tide-egress-dns-udp"
+add rule inet filter forward iifname "br-07baec6b2e49" oifname "eth0" ip saddr 172.18.0.0/16 ip daddr { 183.60.83.19, 183.60.82.98 } tcp dport 53 ct state { new, established } accept comment "tide-egress-dns-tcp"
+add rule inet filter forward iifname "br-07baec6b2e49" oifname "eth0" ip saddr 172.18.0.0/16 tcp dport 443 ct state { new, established } accept comment "tide-egress-https"
+add rule inet filter forward iifname "eth0" oifname "br-07baec6b2e49" ip daddr 172.18.0.0/16 ip saddr { 183.60.83.19, 183.60.82.98 } udp sport 53 ct state established accept comment "tide-egress-dns-return"
+add rule inet filter forward iifname "eth0" oifname "br-07baec6b2e49" ip daddr 172.18.0.0/16 tcp sport { 53, 443 } ct state established accept comment "tide-egress-tcp-return"
+add rule inet filter forward iifname "eth0" oifname "br-07baec6b2e49" ip daddr 172.18.0.0/16 ip protocol icmp ct state related accept comment "tide-egress-related-icmp"
