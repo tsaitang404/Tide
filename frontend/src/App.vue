@@ -2,7 +2,7 @@
   <div id="app" class="app-container">
     <header class="app-header">
       <div class="header-left">
-        <h1 class="logo">GeneticGrid</h1>
+        <h1 class="logo">潮汐 Tide</h1>
       </div>
       <div class="header-right">
         <button :class="['account-btn', { logged: isLoggedIn }]" @click="toggleAccount">

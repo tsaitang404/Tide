@@ -1,4 +1,6 @@
-# GeneticGrid - 加密货币交易平台
+# 潮汐 Tide - 加密货币交易平台
+
+原项目名 GeneticGrid，现名潮汐 Tide。仓库使用 `tsaitang404/Tide`，新发布镜像使用 `ghcr.io/tsaitang404/tide`；Python 包名、Compose 项目名与数据库标识保留，以兼容现有部署。
 
 基于 **Vue 3 + TypeScript + Django** 的现代化加密货币K线图分析平台。
 
@@ -107,14 +109,17 @@ cd frontend && npm run dev
 # 访问: http://localhost:3000
 
 # 3. 生产部署
-cd frontend && npm run build
-python manage.py runserver
-# 访问: http://127.0.0.1:8000
+# 见 docs/DEPLOYMENT.md；不要用 Django runserver 对外提供生产服务。
 ```
 
 ## ✅ 单元测试
 
-安装依赖后可直接运行：
+安装依赖后，先配置 PostgreSQL 测试数据库连接并导出 `DATABASE_URL`、
+`DJANGO_DEBUG=true`、`REALTIME_INGESTION_AUTO_START=false`。无数据库的配置/路由检查可运行
+`pytest tests/test_production_settings.py tests/test_entrypoints.py tests/test_urls.py`。
+全套测试还包含数据库和联网诊断脚本，目前不能当作全部隔离的单元测试。
+
+原有完整测试命令：
 
 ```bash
 pytest
@@ -145,117 +150,16 @@ static/dist/       # Vue 构建输出
 
 ## 🐳 Docker 打包与运行
 
-项目已提供 GitHub Container Registry 镜像，推荐直接从 GitHub 镜像仓库拉取并运行；如需本地定制，再自行构建镜像。
+最终交付是 **版本化 Docker 镜像 + Compose 配置 + 部署说明**，不是独立二进制。
+Vue 前端和 Django 后端在一个镜像中，PostgreSQL 与 Redis 独立持久化。
 
-```bash
-# 1) 拉取 GitHub 镜像
-docker pull ghcr.io/tsaitang404/geneticgrid:v0.2.3
+请按 [部署说明](docs/DEPLOYMENT.md) 配置 `.env.production`，再通过
+`compose.production.yml` 拉取已发布版本。默认不启用市场采集，不需要交易所密钥。
+旧版“无需配置、默认 SQLite 单容器”的说明已失效。
 
-# 2) 直接按默认值启动（无需 .env、无需额外环境变量）
-CONTAINER_NAME=geneticgrid ./scripts/docker-run.sh
-```
-
-如果你需要自定义配置，再额外提供 `.env` 或 shell 环境变量。
-
-使用 `.env` 文件时：
-
-```bash
-cp .env.example .env
-# 按需编辑 .env
-CONTAINER_NAME=geneticgrid ./scripts/docker-run.sh
-```
-
-使用当前 shell 或 CI 注入的环境变量时（代理请在前端设置页配置）：
-
-```bash
-CONTAINER_NAME=geneticgrid ./scripts/docker-run.sh
-```
-
-如需本地自行构建镜像：
-
-```bash
-docker build -t geneticgrid:local .
-IMAGE=geneticgrid:local CONTAINER_NAME=geneticgrid ./scripts/docker-run.sh
-```
-
-访问地址：`http://127.0.0.1:8000`
-
-如需手动运行并持久化配置/数据库，可按需挂载 `.env`，也可只传 Docker 环境变量：
-
-```bash
-docker run --name geneticgrid -p 8000:8000 \
-  --add-host=host.docker.internal:host-gateway \
-  --env-file .env \
-  -v $(pwd)/.env:/app/.env:ro \
-  -v $(pwd)/data:/app/data \
-  ghcr.io/tsaitang404/geneticgrid:v0.2.3
-```
-
-不使用 `.env` 文件时：
-
-```bash
-docker run --name geneticgrid -p 8000:8000 \
-  --add-host=host.docker.internal:host-gateway \
-  -v $(pwd)/data:/app/data \
-  ghcr.io/tsaitang404/geneticgrid:v0.2.3
-```
-
-完全使用默认配置时：
-
-```bash
-docker run --name geneticgrid -p 8000:8000 \
-  --add-host=host.docker.internal:host-gateway \
-  -e ALLOWED_HOSTS=example.com,127.0.0.1 \
-  -v $(pwd)/data:/app/data \
-  ghcr.io/tsaitang404/geneticgrid:v0.2.3
-```
-
-说明：容器内默认数据库路径为 `/app/data/db.sqlite3`，如需自定义再额外传入 `DB_PATH`。通过逗号分隔多个域名/IP，如 `ALLOWED_HOSTS=example.com,127.0.0.1`。
-
-如需在容器中使用宿主机代理，请在前端“偏好设置 -> 代理配置”中填写代理地址。
-
-示例：
-
-```bash
-http://host.docker.internal:8080
-# 或
-socks5://host.docker.internal:1080
-```
-
-等价的手动命令：
-
-```bash
-docker run --name geneticgrid -p 8000:8000 \
-  --env-file .env \
-  -v $(pwd)/.env:/app/.env:ro \
-  -v $(pwd)/data:/app/data \
-  --add-host=host.docker.internal:host-gateway \
-  ghcr.io/tsaitang404/geneticgrid:v0.2.3
-```
-
-说明：
-- 若使用 bridge 网络模式，必须显式添加 `--add-host=host.docker.internal:host-gateway`，避免容器内宿主机名解析失败。
-- 代理开关与代理地址统一由前端设置页保存并下发到后端运行时。
-- `host-gateway` 会自动解析宿主机网关地址，宿主机 IP 变化时无需改容器参数。
-
-### 自动打包镜像
-
-仓库已配置 GitHub Actions，在推送符合 `vX.Y.Z` 格式的 tag 时自动构建并发布镜像到 GitHub Container Registry：
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-发布后的镜像地址为：
-
-```text
-ghcr.io/<github-owner>/geneticgrid:v1.0.0
-```
-
-实际镜像名会自动使用 GitHub 仓库名的小写形式，即 `ghcr.io/<owner>/<repo>:<tag>`。
-
-首次使用前请确认仓库启用了 Packages 权限；该 workflow 使用 GitHub 自带的 `GITHUB_TOKEN` 推送镜像，无需额外的仓库 Secrets。
+本地源码构建仍可用 `docker build -t geneticgrid:local .`。
+版本发布前必须通过 `GENETICGRID_IMAGE=geneticgrid:local ./scripts/smoke-image.sh`。
+仓库中的 `compose.yml` 保留作开发用途，生产部署使用新的独立配置。
 
 ## 🎯 功能
 

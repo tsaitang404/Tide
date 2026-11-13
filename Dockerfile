@@ -14,7 +14,9 @@ RUN npm run build
 FROM python:3.11-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    USE_GUNICORN=true \
+    REALTIME_INGESTION_AUTO_START=false
 
 WORKDIR /app
 
@@ -27,6 +29,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . ./
 COPY --from=frontend-builder /app/static/dist ./static/dist
+
+# Collect static files without starting market ingestion or connecting to a real DB.
+RUN DJANGO_DEBUG=true DATABASE_URL=postgres://build:build@localhost/build \
+    python manage.py collectstatic --noinput
 
 EXPOSE 8000
 

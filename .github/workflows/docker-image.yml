@@ -1,66 +1,77 @@
-name: Publish Docker Image
+name: Validate and Publish Docker Image
 
 on:
+  pull_request:
   push:
-    branches:
-      - main
-    tags:
-      - 'v*.*.*'
+    branches: [main]
+    tags: ['v*.*.*']
+  workflow_dispatch:
 
 permissions:
   contents: read
-  packages: write
-
-env:
-  REGISTRY: ghcr.io
-  # 用于非 tag 推送时的镜像标签
-  BRANCH_TAG: edge
 
 jobs:
   docker:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
       - name: Prepare image name
         id: image
         run: echo "name=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract Docker metadata
+      - name: Extract image metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ steps.image.outputs.name }}
+          images: ghcr.io/${{ steps.image.outputs.name }}
           tags: |
             type=ref,event=tag
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/') }}
-            type=raw,value=${{ env.BRANCH_TAG }},enable=${{ github.ref_name == 'main' }}
-          labels: |
-            org.opencontainers.image.title=GeneticGrid
-            org.opencontainers.image.description=Vue 3 + Django cryptocurrency charting platform
-            org.opencontainers.image.version=${{ github.ref_name }}
-
-      - name: Build and push Docker image
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') }}
+            type=raw,value=edge,enable=${{ github.ref == 'refs/heads/main' }}
+            type=sha
+      - name: Build image for validation
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          load: true
+          tags: geneticgrid:ci
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Smoke test without trading credentials or market ingestion
+        env:
+          GENETICGRID_IMAGE: geneticgrid:ci
+        run: ./scripts/smoke-image.sh
+      - name: Log in to GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish exactly the smoke-tested image
+        if: github.event_name == 'push'
+        env:
+          IMAGE_TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          while IFS= read -r tag; do
+            [ -n "$tag" ] || continue
+            docker tag geneticgrid:ci "$tag"
+            docker push "$tag"
+          done <<< "$IMAGE_TAGS"
+      - name: Package deployment files
+        run: |
+          mkdir -p release
+          cp compose.production.yml .env.production.example docs/DEPLOYMENT.md release/
+          tar -czf geneticgrid-deployment.tar.gz -C release .
+          sha256sum geneticgrid-deployment.tar.gz > geneticgrid-deployment.tar.gz.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: geneticgrid-deployment-${{ github.sha }}
+          path: |
+            geneticgrid-deployment.tar.gz
+            geneticgrid-deployment.tar.gz.sha256

@@ -508,10 +508,6 @@ async function fetchSymbols(): Promise<void> {
   } catch { /* ignore */ }
 }
 
-function onSymbolChange(_type: 'spot' | 'contract'): void {
-  fetchTicker()
-}
-
 // 从 ticker API 获取当前价格
 async function fetchTicker(): Promise<void> {
   const sym = activeTab.value === 'contract' ? contractForm.symbol : spotForm.symbol

@@ -10,7 +10,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'change-me-to-a-secure-key')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DJANGO_DEBUG', 'false').lower() in ('true', '1', 'yes')
+if not DEBUG and SECRET_KEY == 'change-me-to-a-secure-key':
+    raise RuntimeError('Set a unique DJANGO_SECRET_KEY before starting production.')
 
 # 支持环境变量：ALLOWED_HOSTS=example.com,127.0.0.1
 _allowed_hosts_env = os.environ.get('ALLOWED_HOSTS', '')
@@ -38,6 +40,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'allow_cidr.middleware.AllowCIDRMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -127,6 +130,11 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+# Serve collected Vue and admin assets with DEBUG disabled.
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage'},
+}
 
 # Additional locations for static files
 STATICFILES_DIRS = [
