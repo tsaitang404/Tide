@@ -1,0 +1,19 @@
+# Public market-only site. Import only after DNS and outbound data access are ready.
+# Keep the app on 127.0.0.1:18080; never publish database/Redis ports.
+tide.sadd.ing {
+    request_body {
+        max_size 64KB
+    }
+    @market {
+        method GET HEAD
+        path / /market/ /static/dist/* /api/candlesticks/ /api/ticker/ /api/funding-rate/ /api/funding-rate/history/ /api/contract-basis/ /api/contract-basis/history/ /api/sources/ /api/symbols/ /api/sources/*/capabilities/ /api/documentation/sources/ /api/options/instruments/ /api/options/ticker/
+    }
+    handle @market {
+        reverse_proxy 127.0.0.1:18080 {
+            header_up X-Forwarded-Proto https
+        }
+    }
+    handle {
+        respond "Not available on the public market viewer" 404
+    }
+}
